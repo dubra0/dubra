@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>دوو برا · بەڕێوەبەر</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--muted:#5d6b76;--line:#dde3e8;--accent:#0e7c66;--soft:#e1f2ed;--warn:#b4432f}
+@media (prefers-color-scheme:dark){:root{--bg:#0f171d;--card:#17222a;--ink:#e7edf1;--muted:#93a3ae;--line:#26343e;--accent:#3cc4a3;--soft:#163a33;--warn:#ef8a74;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Vazirmatn","Noto Sans Arabic",Tahoma,sans-serif;font-size:15px;line-height:1.6}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.logo{width:46px;height:46px;border-radius:12px;background:var(--accent);color:var(--card);display:grid;place-items:center;font-weight:900;font-size:20px}
+.top b{font-size:20px;display:block;line-height:1.2}.top small{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+input{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:140px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px;background:var(--accent);color:var(--card);cursor:pointer}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.msg{margin:12px 0;color:var(--warn);font-weight:700}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:16px 0;color:var(--muted)}.stats b{color:var(--ink)}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.qr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;justify-items:center;text-align:center;break-inside:avoid}
+.qr .img{background:#fff;padding:8px;border-radius:6px;line-height:0}
+.qr code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);direction:ltr}
+.pill{font-size:12px;padding:1px 10px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:700}
+.pill.new{background:var(--line);color:var(--muted)}
+.qr a{font-size:12px;color:var(--accent)}
+@media print{.noprint{display:none!important}body{background:#fff}.qr{border:1px solid #ccc}.grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo">DB</div><div><b>دوو برا · پانێڵی بەڕێوەبەر</b><small>دروستکردنی QR کۆد</small></div></div>
+
+  <div id="login" class="row noprint">
+    <label for="pin">وشەی نهێنی<input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
+    <button class="btn" id="go">چوونەژوورەوە</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="row noprint">
+      <label for="n">ژمارەی QR<input id="n" type="number" min="1" max="1000" value="100"></label>
+      <button class="btn" id="make">دروستکردن</button>
+      <button class="btn ghost" id="print">چاپکردن</button>
+      <button class="btn ghost" id="refresh">نوێکردنەوە</button>
+    </div>
+    <div class="stats noprint">
+      <span>کۆی QR: <b id="sT">0</b></span><span>سکانکراو: <b id="sU">0</b></span>
+      <span>نوێ: <b id="sN">0</b></span><span>ڕیزی ئامادە لە شیت: <b id="sR">0</b></span>
+    </div>
+    <div class="tabs noprint">
+      <button class="btn ghost" data-f="new">نوێکان</button>
+      <button class="btn ghost" data-f="used">سکانکراوەکان</button>
+      <button class="btn ghost" data-f="all">هەموو</button>
+    </div>
+  </div>
+  <div class="msg noprint" id="msg"></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const API='https://foplvmfppbngywmxmqof.supabase.co/rest/v1/rpc/';
+const KEY='sb_publishable_HFxscwwTWxXEspJEnpJgFA_Ib4A5cAQ';
+const BASE=location.href.replace(/admin\.html.*$/,'')+'q.html?c=';
+let PIN='',list=[],filter='new';
+const $=s=>document.querySelector(s);
+const rpc=(fn,body)=>fetch(API+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(body)}).then(r=>r.json());
+
+async function load(){
+  const d=await rpc('admin_list',{p_pin:PIN});
+  if(!d.ok){$('#msg').textContent='وشەی نهێنی هەڵەیە.';return false}
+  list=d.codes;$('#msg').textContent='';
+  $('#sT').textContent=list.length;$('#sU').textContent=list.filter(x=>x.row).length;
+  $('#sN').textContent=list.filter(x=>!x.row).length;$('#sR').textContent=d.free_rows;
+  render();return true;
+}
+function render(){
+  const g=$('#grid');g.innerHTML='';
+  const items=list.filter(x=>filter==='all'||(filter==='new'?!x.row:x.row));
+  if(!items.length){g.innerHTML='<p class="noprint" style="color:var(--muted)">هیچ QR کۆدێک لێرە نییە.</p>';return}
+  items.forEach(x=>{
+    const el=document.createElement('div');el.className='qr';
+    el.innerHTML='<div class="img"></div><code>'+x.code+'</code>'+(x.row?'<span class="pill">ڕیز '+x.row+' · '+x.count+' سکان</span><small style="direction:ltr">'+x.scanned_at+'</small>':'<span class="pill new">نوێ</span>')+'<a class="noprint" href="#">دابەزاندن PNG</a>';
+    new QRCode(el.querySelector('.img'),{text:BASE+x.code,width:140,height:140,correctLevel:QRCode.CorrectLevel.M});
+    el.querySelector('a').onclick=e=>{e.preventDefault();const c=el.querySelector('canvas');const a=document.createElement('a');a.download='DwBra-'+x.code+'.png';a.href=c.toDataURL('image/png');a.click()};
+    g.appendChild(el);
+  });
+}
+$('#go').onclick=async()=>{PIN=$('#pin').value.trim();if(await load()){$('#login').hidden=true;$('#app').hidden=false}};
+$('#pin').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};
+$('#make').onclick=async()=>{
+  const n=Math.max(1,Math.min(1000,+$('#n').value||1));$('#msg').textContent='چاوەڕێ بکە...';
+  const d=await rpc('admin_create_qr',{p_pin:PIN,p_count:n});
+  if(!d.ok){$('#msg').textContent='هەڵەیەک ڕوویدا.';return}
+  filter='new';await load();$('#msg').textContent=n+' QR کۆد دروست کرا ✅';
+};
+$('#print').onclick=()=>window.print();
+$('#refresh').onclick=load;
+document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;render()});
+</script>
+</body>
+</html>
