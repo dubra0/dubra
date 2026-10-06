@@ -4,103 +4,365 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>دوو برا · بەڕێوەبەر</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<title>دوو برا · پانێڵ</title>
+<link rel="preconnect" href="https://foplvmfppbngywmxmqof.supabase.co" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
-:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--muted:#5d6b76;--line:#dde3e8;--accent:#0e7c66;--soft:#e1f2ed;--warn:#b4432f}
-@media (prefers-color-scheme:dark){:root{--bg:#0f171d;--card:#17222a;--ink:#e7edf1;--muted:#93a3ae;--line:#26343e;--accent:#3cc4a3;--soft:#163a33;--warn:#ef8a74;color-scheme:dark}}
+/* Layout: sticky brand bar; stat strip; "new group" card; groups table; code browser with paging (never renders more than one page) */
+:root{
+  --bg:#f2f5f4; --card:#ffffff; --ink:#132320; --muted:#5b6e69; --line:#dbe4e1;
+  --accent:#0e7c66; --accent-ink:#ffffff; --soft:#e0f1ec; --gold:#b9852a; --warn:#b4432f; --warnsoft:#fbe9e5;
+  --f:"Vazirmatn","Noto Sans Arabic",Tahoma,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0d1614; --card:#15211e; --ink:#e5eeeb; --muted:#93a8a2; --line:#24342f;
+  --accent:#3cc4a3; --accent-ink:#06231c; --soft:#143832; --gold:#e0b25c; --warn:#ef8a74; --warnsoft:#3a201b; color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Vazirmatn","Noto Sans Arabic",Tahoma,sans-serif;font-size:15px;line-height:1.6}
-.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
-.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
-.logo{width:46px;height:46px;border-radius:12px;background:var(--accent);color:var(--card);display:grid;place-items:center;font-weight:900;font-size:20px}
-.top b{font-size:20px;display:block;line-height:1.2}.top small{color:var(--muted)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.6}
+.bar{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+.bar .in{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:42px;height:42px;border-radius:11px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:900;font-size:18px}
+.brand b{font-size:18px;display:block;line-height:1.2}.brand small{color:var(--muted)}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px;display:grid;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+h2{margin:0 0 4px;font-size:17px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 14px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat span{color:var(--muted);font-size:13px}.stat b{display:block;font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.3}
+.stat.warn b{color:var(--warn)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
-input{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:140px}
-.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px;background:var(--accent);color:var(--card);cursor:pointer}
-.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
-.msg{margin:12px 0;color:var(--warn);font-weight:700}
-.stats{display:flex;gap:18px;flex-wrap:wrap;margin:16px 0;color:var(--muted)}.stats b{color:var(--ink)}
-.tabs{display:flex;gap:8px;margin:12px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
-.qr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;justify-items:center;text-align:center;break-inside:avoid}
-.qr .img{background:#fff;padding:8px;border-radius:6px;line-height:0}
-.qr code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);direction:ltr}
-.pill{font-size:12px;padding:1px 10px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:700}
+input,select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);min-width:0}
+input[type=number]{width:150px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:9px;padding:10px 18px;background:var(--accent);color:var(--accent-ink);cursor:pointer;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:6px 12px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chk{display:flex;align-items:center;gap:6px;color:var(--ink);font-size:14px;padding-bottom:10px}
+.prog{margin-top:14px;display:grid;gap:6px}
+.track{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.fill{height:100%;width:0;background:var(--accent);transition:width .2s}
+.prog small{color:var(--muted);font-variant-numeric:tabular-nums}
+.msg{font-weight:700;color:var(--warn)} .ok{color:var(--accent)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:start;white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:13px}
+td .acts{display:flex;gap:6px}
+.pill{display:inline-block;font-size:12px;padding:1px 10px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:700}
 .pill.new{background:var(--line);color:var(--muted)}
-.qr a{font-size:12px;color:var(--accent)}
-@media print{.noprint{display:none!important}body{background:#fff}.qr{border:1px solid #ccc}.grid{grid-template-columns:repeat(4,1fr)}}
+.meter{display:inline-block;width:70px;height:6px;border-radius:9px;background:var(--line);vertical-align:middle;margin-inline-start:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
+.qr{border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:4px;justify-items:center;text-align:center;background:var(--card)}
+.qr .img{background:#fff;border-radius:6px;line-height:0;padding:4px}
+.qr .img svg{width:120px;height:120px}
+.qr code{font-family:var(--mono);font-size:10px;color:var(--muted);direction:ltr}
+.qr .n{font-size:12px;font-weight:700}
+.pager{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.found{margin-top:12px;display:grid;gap:4px}
+#app:not([hidden]){display:grid;gap:18px}
+[hidden]{display:none!important}
+.login{max-width:380px;margin:12vh auto 0}
+.empty{color:var(--muted);padding:20px 0;text-align:center}
+@media print{.bar,.noprint{display:none!important}body{background:#fff;color:#000}.card{border:0;padding:0}.grid{grid-template-columns:repeat(5,1fr)}.qr{break-inside:avoid;border:1px solid #ccc}}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="top"><div class="logo">DB</div><div><b>دوو برا · پانێڵی بەڕێوەبەر</b><small>دروستکردنی QR کۆد</small></div></div>
+<div class="bar"><div class="in">
+  <div class="brand"><div class="logo">DB</div><div><b>دوو برا</b><small>پانێڵی بەڕێوەبەر</small></div></div>
+  <button class="btn ghost sm noprint" id="logout" hidden>دەرچوون</button>
+</div></div>
 
-  <div id="login" class="row noprint">
-    <label for="pin">وشەی نهێنی<input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
-    <button class="btn" id="go">چوونەژوورەوە</button>
-  </div>
+<div class="wrap">
+  <section id="login" class="card login">
+    <h2>چوونەژوورەوە</h2>
+    <p class="sub">وشەی نهێنی (PIN) بنووسە</p>
+    <div class="row">
+      <label for="pin" style="flex:1">PIN<input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
+      <button class="btn" id="go">چوونەژوورەوە</button>
+    </div>
+    <p class="msg" id="lmsg"></p>
+  </section>
 
   <div id="app" hidden>
-    <div class="row noprint">
-      <label for="n">ژمارەی QR<input id="n" type="number" min="1" max="1000" value="100"></label>
-      <button class="btn" id="make">دروستکردن</button>
-      <button class="btn ghost" id="print">چاپکردن</button>
-      <button class="btn ghost" id="refresh">نوێکردنەوە</button>
-    </div>
     <div class="stats noprint">
-      <span>کۆی QR: <b id="sT">0</b></span><span>سکانکراو: <b id="sU">0</b></span>
-      <span>نوێ: <b id="sN">0</b></span><span>ڕیزی ئامادە لە شیت: <b id="sR">0</b></span>
+      <div class="stat"><span>کۆی QR کۆدەکان</span><b id="sT">–</b></div>
+      <div class="stat"><span>سکانکراو</span><b id="sU">–</b></div>
+      <div class="stat"><span>QR ـی نوێ (سکان نەکراو)</span><b id="sN">–</b></div>
+      <div class="stat" id="sRbox"><span>ڕیزی ئامادە لە شیت</span><b id="sR">–</b></div>
     </div>
-    <div class="tabs noprint">
-      <button class="btn ghost" data-f="new">نوێکان</button>
-      <button class="btn ghost" data-f="used">سکانکراوەکان</button>
-      <button class="btn ghost" data-f="all">هەموو</button>
-    </div>
+
+    <section class="card noprint">
+      <h2>دروستکردنی QR ـی نوێ</h2>
+      <p class="sub">ناوێک بۆ گرووپەکە بنووسە و ژمارەکە دیاری بکە. دەتوانیت تا ١٠٠,٠٠٠ دانە بە یەکجار دروست بکەیت.</p>
+      <div class="row">
+        <label for="bname" style="flex:1;min-width:180px">ناوی گرووپ<input id="bname" placeholder="بۆ نموونە: eid-2026" maxlength="40"></label>
+        <label for="bcount">ژمارە<input id="bcount" type="number" min="1" max="100000" value="100"></label>
+        <label for="bsize">قەبارەی وێنە<select id="bsize"><option value="300" selected>بچووک ٣٠٠px</option><option value="500">مامناوەند ٥٠٠px</option><option value="1000">گەورە ١٠٠٠px (بۆ چاپ)</option></select></label>
+        <label for="bfmt">جۆر<select id="bfmt"><option value="png">PNG</option><option value="svg">SVG (بۆ چاپخانە)</option></select></label>
+        <label class="chk" for="blabel"><input id="blabel" type="checkbox" checked> کۆدەکە لە خوارەوەی QR بنووسە</label>
+        <label class="chk" for="bzip"><input id="bzip" type="checkbox" checked> ZIP ڕاستەوخۆ دابەزێنە</label>
+        <button class="btn" id="create">دروستکردن</button>
+      </div>
+      <div class="prog" id="prog" hidden>
+        <div class="track"><div class="fill" id="pfill"></div></div>
+        <small id="ptext"></small>
+      </div>
+      <p class="msg" id="cmsg"></p>
+    </section>
+
+    <section class="card noprint">
+      <h2>گرووپەکان</h2>
+      <p class="sub">هەر گرووپێک دەتوانیت دووبارە وەک ZIP دابەزێنیت. بۆ ژمارەی زۆر (وەک ١٠٠,٠٠٠) <b>SVG</b> زۆر خێراترە و یەک ZIP ـی بچووکتر دەدات. PNG ـی زۆر بە چەند ZIP ـێک دابەش دەکرێت.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ناو</th><th>بەروار</th><th>ژمارە</th><th>سکانکراو</th><th></th></tr></thead>
+        <tbody id="btable"><tr><td colspan="5" class="empty">چاوەڕێ بکە...</td></tr></tbody>
+      </table></div>
+    </section>
+
+    <section class="card noprint">
+      <h2>گەڕان بۆ QR کۆد</h2>
+      <div class="row">
+        <label for="fcode" style="flex:1">کۆد<input id="fcode" dir="ltr" placeholder="ABCD..."></label>
+        <button class="btn ghost" id="find">گەڕان</button>
+      </div>
+      <div class="found" id="found"></div>
+    </section>
+
+    <section class="card" id="viewer" hidden>
+      <div class="row noprint" style="justify-content:space-between">
+        <div><h2 id="vtitle"></h2><p class="sub" id="vsub" style="margin:0"></p></div>
+        <div class="row">
+          <select id="vfilter" aria-label="فلتەر"><option value="all">هەموو</option><option value="new">نوێکان</option><option value="used">سکانکراوەکان</option></select>
+          <button class="btn ghost sm" id="vprint">چاپکردنی ئەم پەڕەیە</button>
+          <button class="btn ghost sm" id="vclose">داخستن</button>
+        </div>
+      </div>
+      <div class="grid" id="vgrid"></div>
+      <div class="pager noprint">
+        <button class="btn ghost sm" id="vprev">پێشوو</button>
+        <small id="vpage"></small>
+        <button class="btn ghost sm" id="vnext">دواتر</button>
+      </div>
+    </section>
   </div>
-  <div class="msg noprint" id="msg"></div>
-  <div class="grid" id="grid"></div>
 </div>
+
 <script>
 const API='https://foplvmfppbngywmxmqof.supabase.co/rest/v1/rpc/';
 const KEY='sb_publishable_HFxscwwTWxXEspJEnpJgFA_Ib4A5cAQ';
-const BASE=location.href.replace(/admin\.html.*$/,'')+'q.html?c=';
-let PIN='',list=[],filter='new';
+const BASE=location.href.replace(/[^/]*([?#].*)?$/,'')+'q.html?c=';
+const CHUNK=5000, PAGE=60;
+const partSize=fmt=>fmt==='svg'?50000:15000;
 const $=s=>document.querySelector(s);
-const rpc=(fn,body)=>fetch(API+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(body)}).then(r=>r.json());
+const nf=n=>Number(n||0).toLocaleString('en-US');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let PIN='', batches=[], busy=false, view=null;
 
-async function load(){
-  const d=await rpc('admin_list',{p_pin:PIN});
-  if(!d.ok){$('#msg').textContent='وشەی نهێنی هەڵەیە.';return false}
-  list=d.codes;$('#msg').textContent='';
-  $('#sT').textContent=list.length;$('#sU').textContent=list.filter(x=>x.row).length;
-  $('#sN').textContent=list.filter(x=>!x.row).length;$('#sR').textContent=d.free_rows;
-  render();return true;
+async function rpc(fn,body,tries=3){
+  for(let t=0;;t++){
+    try{
+      const r=await fetch(API+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify({p_pin:PIN,...body})});
+      if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,200));
+      return await r.json();
+    }catch(e){ if(t>=tries-1) throw e; await new Promise(r=>setTimeout(r,800*(t+1))); }
+  }
 }
-function render(){
-  const g=$('#grid');g.innerHTML='';
-  const items=list.filter(x=>filter==='all'||(filter==='new'?!x.row:x.row));
-  if(!items.length){g.innerHTML='<p class="noprint" style="color:var(--muted)">هیچ QR کۆدێک لێرە نییە.</p>';return}
-  items.forEach(x=>{
-    const el=document.createElement('div');el.className='qr';
-    el.innerHTML='<div class="img"></div><code>'+x.code+'</code>'+(x.row?'<span class="pill">ڕیز '+x.row+' · '+x.count+' سکان</span><small style="direction:ltr">'+x.scanned_at+'</small>':'<span class="pill new">نوێ</span>')+'<a class="noprint" href="#">دابەزاندن PNG</a>';
-    new QRCode(el.querySelector('.img'),{text:BASE+x.code,width:140,height:140,correctLevel:QRCode.CorrectLevel.M});
-    el.querySelector('a').onclick=e=>{e.preventDefault();const c=el.querySelector('canvas');const a=document.createElement('a');a.download='DwBra-'+x.code+'.png';a.href=c.toDataURL('image/png');a.click()};
-    g.appendChild(el);
+
+/* ---------- login ---------- */
+async function login(){
+  PIN=$('#pin').value.trim(); $('#lmsg').textContent='';
+  try{
+    const d=await rpc('admin_stats',{});
+    if(!d.ok){$('#lmsg').textContent='وشەی نهێنی هەڵەیە.';return}
+    try{sessionStorage.setItem('dbpin',PIN)}catch(e){}
+    $('#login').hidden=true; $('#app').hidden=false; $('#logout').hidden=false;
+    showStats(d);
+  }catch(e){$('#lmsg').textContent='پەیوەندی نییە: '+e.message}
+}
+$('#go').onclick=login; $('#pin').onkeydown=e=>{if(e.key==='Enter')login()};
+$('#logout').onclick=()=>{try{sessionStorage.removeItem('dbpin')}catch(e){} location.reload()};
+try{const p=sessionStorage.getItem('dbpin'); if(p){$('#pin').value=p; login()}}catch(e){}
+
+/* ---------- stats & groups ---------- */
+async function refresh(){ const d=await rpc('admin_stats',{}); if(d.ok) showStats(d); }
+function showStats(d){
+  batches=d.batches||[];
+  $('#sT').textContent=nf(d.codes); $('#sU').textContent=nf(d.scanned);
+  $('#sN').textContent=nf(d.codes-d.scanned); $('#sR').textContent=nf(d.free_rows);
+  $('#sRbox').classList.toggle('warn', d.free_rows < (d.codes-d.scanned));
+  const tb=$('#btable');
+  if(!batches.length){tb.innerHTML='<tr><td colspan="5" class="empty">هێشتا هیچ گرووپێک نییە. یەکەم گرووپ لە سەرەوە دروست بکە.</td></tr>';return}
+  tb.innerHTML=batches.map(b=>{
+    const pct=b.total?Math.round(b.used/b.total*100):0;
+    return `<tr><td><b>${esc(b.name)}</b></td><td dir="ltr" style="text-align:end">${esc(b.created)}</td><td>${nf(b.total)}</td>
+      <td>${nf(b.used)}<span class="meter"><i style="width:${pct}%"></i></span></td>
+      <td><div class="acts"><button class="btn sm" data-zip="${b.id}">ZIP</button><button class="btn ghost sm" data-view="${b.id}">بینین</button></div></td></tr>`;
+  }).join('');
+  tb.querySelectorAll('[data-zip]').forEach(x=>x.onclick=()=>downloadBatch(+x.dataset.zip));
+  tb.querySelectorAll('[data-view]').forEach(x=>x.onclick=()=>openView(+x.dataset.view));
+}
+
+/* ---------- progress ---------- */
+function prog(show,pct,text){ $('#prog').hidden=!show; if(show){$('#pfill').style.width=Math.max(0,Math.min(100,pct))+'%'; $('#ptext').textContent=text||''} }
+function lock(on){ busy=on; ['#create'].forEach(s=>$(s).disabled=on); document.querySelectorAll('[data-zip]').forEach(b=>b.disabled=on); }
+window.addEventListener('beforeunload',e=>{ if(busy){e.preventDefault(); e.returnValue='';} });
+
+/* ---------- create ---------- */
+$('#create').onclick=async()=>{
+  if(busy) return;
+  const name=($('#bname').value.trim()||'QR').replace(/[\\/:*?"<>|]+/g,'-');
+  const total=Math.max(1,Math.min(100000,parseInt($('#bcount').value)||1));
+  $('#cmsg').textContent=''; $('#cmsg').className='msg'; lock(true);
+  try{
+    const b=await rpc('admin_new_batch',{p_name:name});
+    if(!b.ok) throw new Error('PIN');
+    let made=0; const t0=performance.now();
+    while(made<total){
+      const n=Math.min(CHUNK,total-made);
+      const r=await rpc('admin_add_codes',{p_batch:b.id,p_count:n});
+      if(!r.ok) throw new Error('add');
+      made+=n;
+      const sec=(performance.now()-t0)/1000, left=Math.round(sec/made*(total-made));
+      prog(true,made/total*100,`دروستکردن: ${nf(made)} / ${nf(total)}`+(made<total?` · نزیکەی ${left} چرکە ماوە`:''));
+    }
+    await refresh();
+    $('#cmsg').className='msg ok'; $('#cmsg').textContent=`✅ ${nf(total)} QR کۆد دروست کرا لە گرووپی «${name}»`;
+    if($('#bzip').checked){ lock(false); await downloadBatch(b.id); }
+    else prog(false);
+  }catch(e){ $('#cmsg').textContent='هەڵەیەک ڕوویدا: '+e.message+' — دەتوانیت دووبارە هەوڵ بدەیتەوە.'; }
+  finally{ lock(false); }
+};
+
+/* ---------- ZIP: parallel render workers + one zip worker (page never freezes) ---------- */
+const RENDER_SRC=`
+importScripts('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js');
+onmessage=async e=>{
+  const {items,base,fmt,size,label,name}=e.data; const files=[], bufs=[]; let csv='';
+  const cv=fmt==='png'?new OffscreenCanvas(10,10):null;
+  for(let i=0;i<items.length;i++){
+    const seq=items[i][0], code=items[i][1], url=base+code;
+    const q=qrcode(0,'M'); q.addData(url); q.make(); const n=q.getModuleCount(), quiet=4;
+    const fname=name+'-'+String(seq).padStart(6,'0');
+    if(cv){
+      const cell=Math.max(2,Math.floor(size/(n+quiet*2))), w=cell*(n+quiet*2), lh=label?Math.round(cell*5):0;
+      cv.width=w; cv.height=w+lh; const c=cv.getContext('2d');
+      c.fillStyle='#fff'; c.fillRect(0,0,w,w+lh); c.fillStyle='#000';
+      for(let r=0;r<n;r++){let k=0;while(k<n){if(q.isDark(r,k)){const s=k;while(k<n&&q.isDark(r,k))k++;c.fillRect((s+quiet)*cell,(r+quiet)*cell,(k-s)*cell,cell);}else k++;}}
+      if(label){ c.font='bold '+Math.round(cell*2.6)+'px monospace'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(code,w/2,w-cell*1.5+lh/2); }
+      const buf=await (await cv.convertToBlob({type:'image/png'})).arrayBuffer();
+      files.push([fname+'.png',buf]); bufs.push(buf);
+    }else{
+      let d=''; for(let r=0;r<n;r++){let k=0;while(k<n){if(q.isDark(r,k)){const s=k;while(k<n&&q.isDark(r,k))k++;d+='M'+(s+quiet)+' '+(r+quiet)+'h'+(k-s)+'v1h-'+(k-s)+'z';}else k++;}}
+      const W=n+quiet*2, H=W+(label?5:0);
+      const txt=label?'<text x="'+(W/2)+'" y="'+(W+1.2)+'" font-family="monospace" font-weight="bold" font-size="2.4" text-anchor="middle">'+code+'</text>':'';
+      files.push([fname+'.svg','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+size+'" height="'+Math.round(size*H/W)+'" shape-rendering="crispEdges"><rect width="'+W+'" height="'+H+'" fill="#fff"/><path d="'+d+'"/>'+txt+'</svg>']);
+    }
+    csv+=seq+','+code+','+url+'\\n';
+    if(i%50===49) postMessage({t:'p',n:50});
+  }
+  postMessage({t:'done',files,csv},bufs);
+};`;
+const ZIP_SRC=`
+importScripts('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+onmessage=async e=>{
+  const {files,csv,name,fmt}=e.data; const zip=new JSZip();
+  for(const f of files) zip.file(f[0],f[1]);
+  zip.file(name+'-list.csv','\\ufeffژمارە,کۆد,بەستەر\\n'+csv);
+  const blob=await zip.generateAsync({type:'blob',compression:fmt==='svg'?'DEFLATE':'STORE',compressionOptions:{level:3}},m=>postMessage({t:'z',p:m.percent}));
+  postMessage({t:'done',blob});
+};`;
+const urlOf={}; const wurl=k=>urlOf[k]||(urlOf[k]=URL.createObjectURL(new Blob([k==='r'?RENDER_SRC:ZIP_SRC],{type:'text/javascript'})));
+const POOL=Math.max(1,Math.min(4,navigator.hardwareConcurrency||2));
+async function zipPart(items,name,fmt,size,label,onProg){
+  if(fmt==='png'&&typeof OffscreenCanvas==='undefined') fmt='svg';
+  let done=0; const slices=[...Array(POOL)].map((_,p)=>items.filter((_,i)=>i%POOL===p)).filter(x=>x.length);
+  const results=await Promise.all(slices.map(sl=>new Promise((res,rej)=>{
+    const w=new Worker(wurl('r'));
+    w.onmessage=e=>{const m=e.data; if(m.t==='p'){done+=m.n; onProg(Math.min(done/items.length,1)*0.85)} else {w.terminate(); res(m)}};
+    w.onerror=e=>{w.terminate(); rej(new Error(e.message||'render'))};
+    w.postMessage({items:sl,base:BASE,fmt,size,label,name});
+  })));
+  const files=[], bufs=[]; let csv='';
+  results.forEach(r=>{ r.files.forEach(f=>{files.push(f); if(f[1] instanceof ArrayBuffer) bufs.push(f[1])}); csv+=r.csv; });
+  files.sort((a,b)=>a[0]<b[0]?-1:1);
+  csv=csv.split('\n').filter(Boolean).sort((a,b)=>parseInt(a)-parseInt(b)).join('\n')+'\n';
+  return await new Promise((res,rej)=>{
+    const w=new Worker(wurl('z'));
+    w.onmessage=e=>{const m=e.data; if(m.t==='z') onProg(0.85+m.p/100*0.15); else {w.terminate(); res(m.blob)}};
+    w.onerror=e=>{w.terminate(); rej(new Error(e.message||'zip'))};
+    w.postMessage({files,csv,name,fmt},bufs);
   });
 }
-$('#go').onclick=async()=>{PIN=$('#pin').value.trim();if(await load()){$('#login').hidden=true;$('#app').hidden=false}};
-$('#pin').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};
-$('#make').onclick=async()=>{
-  const n=Math.max(1,Math.min(1000,+$('#n').value||1));$('#msg').textContent='چاوەڕێ بکە...';
-  const d=await rpc('admin_create_qr',{p_pin:PIN,p_count:n});
-  if(!d.ok){$('#msg').textContent='هەڵەیەک ڕوویدا.';return}
-  filter='new';await load();$('#msg').textContent=n+' QR کۆد دروست کرا ✅';
+function save(blob,fname){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000); }
+
+async function downloadBatch(id){
+  if(busy) return;
+  const b=batches.find(x=>x.id===id); if(!b) return;
+  const fmt=$('#bfmt').value, size=+$('#bsize').value, label=$('#blabel').checked;
+  const safe=String(b.name).replace(/[\\/:*?"<>|\s]+/g,'-');
+  const PART=partSize(fmt); const parts=Math.ceil(b.total/PART); lock(true); $('#cmsg').className='msg';
+  try{
+    for(let p=0;p<parts;p++){
+      const items=[];
+      for(let off=p*PART; off<Math.min((p+1)*PART,b.total); off+=10000){
+        prog(true,0,`وەرگرتنی لیستی کۆدەکان${parts>1?` · بەشی ${p+1}/${parts}`:''}...`);
+        const r=await rpc('admin_batch_codes',{p_batch:id,p_offset:off,p_limit:Math.min(10000,(p+1)*PART-off)});
+        r.items.forEach(x=>items.push([x[0],x[1]]));
+      }
+      const blob=await zipPart(items,safe,fmt,size,label,f=>{
+        const overall=(p+f)/parts*100;
+        prog(true,overall,`دروستکردنی ZIP${parts>1?` · بەشی ${p+1}/${parts}`:''} · ${nf(Math.round(f*items.length))} / ${nf(items.length)}`);
+      });
+      save(blob, safe+(parts>1?'-part'+(p+1):'')+'.zip');
+    }
+    prog(true,100,'✅ ZIP ئامادەیە و دابەزی'+(parts>1?` (${parts} فایل)`:''));
+  }catch(e){ $('#cmsg').textContent='دروستکردنی ZIP سەرکەوتوو نەبوو: '+e.message; prog(false); }
+  finally{ lock(false); }
+}
+
+/* ---------- viewer (paged, never renders everything) ---------- */
+async function openView(id){
+  const b=batches.find(x=>x.id===id); if(!b) return;
+  view={id,b,page:0,filter:'all'}; $('#vfilter').value='all';
+  $('#viewer').hidden=false; await renderView(); $('#viewer').scrollIntoView({behavior:'smooth'});
+}
+async function renderView(){
+  const {b,page}=view, pages=Math.max(1,Math.ceil(b.total/PAGE));
+  $('#vtitle').textContent='گرووپی «'+b.name+'»'; $('#vsub').textContent=nf(b.total)+' QR · '+nf(b.used)+' سکانکراو';
+  $('#vgrid').innerHTML='<p class="empty">چاوەڕێ بکە...</p>';
+  const r=await rpc('admin_batch_codes',{p_batch:b.id,p_offset:page*PAGE,p_limit:PAGE});
+  let items=r.items||[];
+  if(view.filter==='new') items=items.filter(x=>!x[2]); if(view.filter==='used') items=items.filter(x=>x[2]);
+  $('#vgrid').innerHTML=items.length?items.map(x=>{
+    const q=qrcode(0,'M'); q.addData(BASE+x[1]); q.make();
+    return `<div class="qr"><div class="img">${q.createSvgTag({cellSize:3,margin:2,scalable:true})}</div>
+      <span class="n">${esc(b.name)} · ${x[0]}</span><code>${x[1]}</code>
+      ${x[2]?`<span class="pill">ڕیز ${x[2]} · ${x[4]} سکان</span><small dir="ltr" style="color:var(--muted);font-size:11px">${esc(x[3])}</small>`:'<span class="pill new">نوێ</span>'}</div>`;
+  }).join(''):'<p class="empty">لەم پەڕەیەدا هیچ QR ـێک نییە.</p>';
+  $('#vpage').textContent=`پەڕەی ${page+1} لە ${pages}`;
+  $('#vprev').disabled=page<=0; $('#vnext').disabled=page>=pages-1;
+}
+$('#vprev').onclick=()=>{view.page--;renderView()}; $('#vnext').onclick=()=>{view.page++;renderView()};
+$('#vfilter').onchange=e=>{view.filter=e.target.value;renderView()};
+$('#vclose').onclick=()=>{$('#viewer').hidden=true;view=null};
+$('#vprint').onclick=()=>window.print();
+
+/* ---------- search ---------- */
+$('#find').onclick=async()=>{
+  const c=$('#fcode').value.trim(); if(!c) return;
+  const r=await rpc('admin_find',{p_code:c}); const f=r.found, box=$('#found');
+  if(!f){box.innerHTML='<span class="msg">ئەم کۆدە نەدۆزرایەوە.</span>';return}
+  box.innerHTML=`<div><b>${esc(f.batch||'')}</b> · ژمارە ${f.seq} · <code dir="ltr">${f.code}</code></div>`+
+    (f.row?`<div><span class="pill">سکانکراو</span> ڕیزی ${f.row} · ${f.count} جار · <span dir="ltr">${esc(f.scanned_at)}</span></div><div style="color:var(--muted)">${f.data.filter(Boolean).map(esc).join(' · ')}</div>`:'<div><span class="pill new">هێشتا سکان نەکراوە</span></div>');
 };
-$('#print').onclick=()=>window.print();
-$('#refresh').onclick=load;
-document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;render()});
+$('#fcode').onkeydown=e=>{if(e.key==='Enter')$('#find').click()};
 </script>
 </body>
 </html>
