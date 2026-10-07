@@ -80,6 +80,8 @@ tr.done td{opacity:.55}
 td.data{white-space:normal;min-width:200px;max-width:360px}
 td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
 .btn.warn{background:var(--warn);color:#fff}
+.btn.del{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+.delbox{margin-top:14px;padding:14px;border:1px solid var(--warn);background:var(--warnsoft);border-radius:14px}
 .login{max-width:380px;margin:12vh auto 0}
 .empty{color:var(--muted);padding:20px 0;text-align:center}
 @media print{.bar,.noprint{display:none!important}body{background:#fff;color:#000}.card{border:0;padding:0}.grid{grid-template-columns:repeat(5,1fr)}.qr{break-inside:avoid;border:1px solid #ccc}}
@@ -152,6 +154,16 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
         <thead><tr><th>ناو</th><th>بەروار</th><th>ژمارە</th><th>سکانکراو</th><th></th></tr></thead>
         <tbody id="btable"><tr><td colspan="5" class="empty">چاوەڕێ بکە...</td></tr></tbody>
       </table></div>
+      <div class="delbox" id="delbox" hidden>
+        <b id="deltitle"></b>
+        <p class="sub" style="margin:6px 0 10px">QR ـە سڕاوەکان ئیتر کار ناکەن (ئەگەر چاپیش کرابن). زانیاری ئەو ڕیزانەی پێشتر سکان کراون لە شیتەکەدا دەمێنێتەوە و دۆخیان دەبێتە «QR سڕایەوە».</p>
+        <div class="row">
+          <button class="btn warn sm" id="delnew">سڕینەوەی تەنها سکان‌نەکراوەکان</button>
+          <button class="btn warn sm" id="delall">سڕینەوەی هەموو گرووپەکە</button>
+          <button class="btn ghost sm" id="delcancel">پاشگەزبوونەوە</button>
+        </div>
+      </div>
+      <p class="msg" id="delmsg"></p>
     </section>
 
     <section class="card noprint">
@@ -256,15 +268,53 @@ function showStats(d){
     const pct=b.total?Math.round(b.used/b.total*100):0;
     return `<tr><td><b>${esc(b.name)}</b></td><td dir="ltr" style="text-align:end">${esc(b.created)}</td><td>${nf(b.total)}</td>
       <td>${nf(b.used)}<span class="meter"><i style="width:${pct}%"></i></span></td>
-      <td><div class="acts"><button class="btn sm" data-zip="${b.id}">ZIP</button><button class="btn ghost sm" data-view="${b.id}">بینین</button></div></td></tr>`;
+      <td><div class="acts"><button class="btn sm" data-zip="${b.id}">ZIP</button><button class="btn ghost sm" data-view="${b.id}">بینین</button><button class="btn del sm" data-del="${b.id}">سڕینەوە</button></div></td></tr>`;
   }).join('');
   tb.querySelectorAll('[data-zip]').forEach(x=>x.onclick=()=>downloadBatch(+x.dataset.zip));
   tb.querySelectorAll('[data-view]').forEach(x=>x.onclick=()=>openView(+x.dataset.view));
+  tb.querySelectorAll('[data-del]').forEach(x=>x.onclick=()=>askDelete(+x.dataset.del));
+  if(busy) lock(true);
+}
+
+/* ---------- delete a group ---------- */
+let delId=null, delArmed=false;
+function askDelete(id){
+  if(busy) return;
+  const b=batches.find(x=>x.id===id); if(!b) return;
+  delId=id; delArmed=false; $('#delall').textContent='سڕینەوەی هەموو گرووپەکە'; $('#delmsg').textContent='';
+  $('#deltitle').textContent=`سڕینەوەی گرووپی «${b.name}» — ${nf(b.total)} QR (${nf(b.used)} سکانکراو، ${nf(b.total-b.used)} سکان‌نەکراو)`;
+  $('#delnew').hidden=!(b.total-b.used>0) || b.used===0;
+  $('#delbox').hidden=false; $('#delbox').scrollIntoView({behavior:'smooth',block:'center'});
+}
+$('#delcancel').onclick=()=>{ $('#delbox').hidden=true; delId=null; };
+$('#delnew').onclick=()=>runDelete(false);
+$('#delall').onclick=()=>{
+  if(!delArmed){ delArmed=true; $('#delall').textContent='دڵنیای؟ دووبارە دابگرە بۆ سڕینەوە'; setTimeout(()=>{delArmed=false;$('#delall').textContent='سڕینەوەی هەموو گرووپەکە'},5000); return; }
+  runDelete(true);
+};
+async function runDelete(all){
+  const b=batches.find(x=>x.id===delId); if(!b||busy) return;
+  const goal=all?b.total:(b.total-b.used);
+  $('#delbox').hidden=true; lock(true); $('#delmsg').className='msg'; $('#delmsg').textContent='';
+  let gone=0;
+  try{
+    for(;;){
+      const r=await rpc('admin_delete_batch',{p_batch:b.id,p_all:all});
+      if(!r.ok){ if(r.error==='gone') break; throw new Error(r.error); }
+      gone+=r.deleted;
+      prog(true,goal?gone/goal*100:100,`سڕینەوە: ${nf(gone)} / ${nf(goal)}`);
+      if(r.done) break;
+    }
+    if(view&&view.id===b.id){ $('#viewer').hidden=true; view=null; }
+    prog(false); await refresh();
+    $('#delmsg').className='msg ok'; $('#delmsg').textContent=`✅ ${nf(gone)} QR لە گرووپی «${b.name}» سڕایەوە`+(all?' و گرووپەکەش سڕایەوە.':'.');
+  }catch(e){ prog(false); await refresh().catch(()=>{}); $('#delmsg').textContent=`سڕینەوە تەواو نەبوو (${nf(gone)} سڕایەوە): ${e.message} — دووبارە هەوڵ بدەرەوە.`; }
+  finally{ lock(false); delId=null; }
 }
 
 /* ---------- progress ---------- */
 function prog(show,pct,text){ $('#prog').hidden=!show; if(show){$('#pfill').style.width=Math.max(0,Math.min(100,pct))+'%'; $('#ptext').textContent=text||''} }
-function lock(on){ busy=on; ['#create'].forEach(s=>$(s).disabled=on); document.querySelectorAll('[data-zip]').forEach(b=>b.disabled=on); }
+function lock(on){ busy=on; ['#create'].forEach(s=>$(s).disabled=on); document.querySelectorAll('[data-zip],[data-del]').forEach(b=>b.disabled=on); }
 window.addEventListener('beforeunload',e=>{ if(busy){e.preventDefault(); e.returnValue='';} });
 
 /* ---------- create ---------- */
@@ -362,13 +412,18 @@ async function downloadBatch(id){
   const safe=String(b.name).replace(/[\\/:*?"<>|\s]+/g,'-');
   const PART=partSize(fmt); const parts=Math.ceil(b.total/PART); lock(true); $('#cmsg').className='msg';
   try{
+    let last=0;                                   /* keyset by seq: works even after some codes were deleted */
     for(let p=0;p<parts;p++){
       const items=[];
-      for(let off=p*PART; off<Math.min((p+1)*PART,b.total); off+=10000){
+      while(items.length<PART){
         prog(true,0,`وەرگرتنی لیستی کۆدەکان${parts>1?` · بەشی ${p+1}/${parts}`:''}...`);
-        const r=await rpc('admin_batch_codes',{p_batch:id,p_offset:off,p_limit:Math.min(10000,(p+1)*PART-off)});
+        const lim=Math.min(10000,PART-items.length);
+        const r=await rpc('admin_batch_codes',{p_batch:id,p_offset:last,p_limit:lim});
         r.items.forEach(x=>items.push([x[0],x[1]]));
+        if(r.items.length) last=r.items[r.items.length-1][0];
+        if(r.items.length<lim) break;
       }
+      if(!items.length) break;
       const blob=await zipPart(items,safe,fmt,size,label,f=>{
         const overall=(p+f)/parts*100;
         prog(true,overall,`دروستکردنی ZIP${parts>1?` · بەشی ${p+1}/${parts}`:''} · ${nf(Math.round(f*items.length))} / ${nf(items.length)}`);
@@ -383,15 +438,16 @@ async function downloadBatch(id){
 /* ---------- viewer (paged, never renders everything) ---------- */
 async function openView(id){
   const b=batches.find(x=>x.id===id); if(!b) return;
-  view={id,b,page:0,filter:'all'}; $('#vfilter').value='all';
+  view={id,b,page:0,filter:'all',starts:[0]}; $('#vfilter').value='all';
   $('#viewer').hidden=false; await renderView(); $('#viewer').scrollIntoView({behavior:'smooth'});
 }
 async function renderView(){
   const {b,page}=view, pages=Math.max(1,Math.ceil(b.total/PAGE));
   $('#vtitle').textContent='گرووپی «'+b.name+'»'; $('#vsub').textContent=nf(b.total)+' QR · '+nf(b.used)+' سکانکراو';
   $('#vgrid').innerHTML='<p class="empty">چاوەڕێ بکە...</p>';
-  const r=await rpc('admin_batch_codes',{p_batch:b.id,p_offset:page*PAGE,p_limit:PAGE});
+  const r=await rpc('admin_batch_codes',{p_batch:b.id,p_offset:view.starts[page]||0,p_limit:PAGE});
   let items=r.items||[];
+  if(items.length) view.starts[page+1]=items[items.length-1][0];
   if(view.filter==='new') items=items.filter(x=>!x[2]); if(view.filter==='used') items=items.filter(x=>x[2]);
   $('#vgrid').innerHTML=items.length?items.map(x=>{
     const q=qrcode(0,'M'); q.addData(BASE+x[1]); q.make();
@@ -400,7 +456,7 @@ async function renderView(){
       ${x[2]?`<span class="pill">ڕیز ${x[2]} · ${x[4]} سکان</span><small dir="ltr" style="color:var(--muted);font-size:11px">${esc(x[3])}</small>`:'<span class="pill new">نوێ</span>'}</div>`;
   }).join(''):'<p class="empty">لەم پەڕەیەدا هیچ QR ـێک نییە.</p>';
   $('#vpage').textContent=`پەڕەی ${page+1} لە ${pages}`;
-  $('#vprev').disabled=page<=0; $('#vnext').disabled=page>=pages-1;
+  $('#vprev').disabled=page<=0; $('#vnext').disabled=page>=pages-1||(r.items||[]).length<PAGE;
 }
 $('#vprev').onclick=()=>{view.page--;renderView()}; $('#vnext').onclick=()=>{view.page++;renderView()};
 $('#vfilter').onchange=e=>{view.filter=e.target.value;renderView()};
@@ -413,7 +469,20 @@ $('#find').onclick=async()=>{
   const r=await rpc('admin_find',{p_code:c}); const f=r.found, box=$('#found');
   if(!f){box.innerHTML='<span class="msg">ئەم کۆدە نەدۆزرایەوە.</span>';return}
   box.innerHTML=`<div><b>${esc(f.batch||'')}</b> · ژمارە ${f.seq} · <code dir="ltr">${f.code}</code></div>`+
-    (f.row?`<div><span class="pill">سکانکراو</span> ڕیزی ${f.row} · ${f.count} جار · <span dir="ltr">${esc(f.scanned_at)}</span></div><div style="color:var(--muted)">${f.data.filter(Boolean).map(esc).join(' · ')}</div>`:'<div><span class="pill new">هێشتا سکان نەکراوە</span></div>');
+    (f.row?`<div><span class="pill">سکانکراو</span> ڕیزی ${f.row} · ${f.count} جار · <span dir="ltr">${esc(f.scanned_at)}</span></div><div style="color:var(--muted)">${f.data.filter(Boolean).map(esc).join(' · ')}</div>`:'<div><span class="pill new">هێشتا سکان نەکراوە</span></div>')+
+    `<div style="margin-top:8px"><button class="btn del sm" id="fdel">سڕینەوەی ئەم QR ـە</button></div>`;
+  let armed=false;
+  $('#fdel').onclick=async()=>{
+    const btn=$('#fdel');
+    if(!armed){ armed=true; btn.textContent='دڵنیای؟ دووبارە دابگرە'; setTimeout(()=>{ if(document.body.contains(btn)){armed=false; btn.textContent='سڕینەوەی ئەم QR ـە'} },4000); return; }
+    btn.disabled=true;
+    try{
+      const d=await rpc('admin_delete_code',{p_code:f.code});
+      if(!d.ok && d.error!=='gone') throw new Error(d.error);
+      box.innerHTML=`<span class="msg ok">✅ QR <code dir="ltr">${esc(f.code)}</code> سڕایەوە`+(f.row?` · زانیاری ڕیزی ${f.row} لە شیتەکەدا دەمێنێتەوە.`:'.')+'</span>';
+      refresh();
+    }catch(e){ btn.disabled=false; armed=false; btn.textContent='سڕینەوەی ئەم QR ـە'; box.insertAdjacentHTML('beforeend','<div class="msg">نەسڕایەوە: '+esc(e.message)+'</div>'); }
+  };
 };
 $('#fcode').onkeydown=e=>{if(e.key==='Enter')$('#find').click()};
 
