@@ -33,6 +33,10 @@ h2{margin:0 0 4px;font-size:17px;text-wrap:balance}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
 .stat span{color:var(--muted);font-size:13px}.stat b{display:block;font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.3}
 .stat.warn b{color:var(--warn)}
+.dbm{display:block;height:6px;border-radius:9px;background:var(--line);overflow:hidden;margin-top:4px}
+.dbm i{display:block;height:100%;width:0;background:var(--accent)}
+#sDbox small{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+#sDbox.warn .dbm i{background:var(--gold)} #sDbox.alert .dbm i{background:var(--warn)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 input,select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);min-width:0}
@@ -114,6 +118,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
       <div class="stat"><span>سکانکراو</span><b id="sU">–</b></div>
       <div class="stat"><span>QR ـی نوێ (سکان نەکراو)</span><b id="sN">–</b></div>
       <div class="stat" id="sRbox"><span>ڕیزی ئامادە لە شیت</span><b id="sR">–</b></div>
+      <div class="stat" id="sDbox"><span>داتابەیس (بەخۆڕایی ٥٠٠ MB)</span><b id="sD">–</b><span class="dbm"><i id="sDm"></i></span><small id="sDt"></small></div>
       <div class="stat" id="sPbox"><span>داواکاری گۆڕین</span><b id="sP">–</b></div>
     </div>
 
@@ -275,6 +280,12 @@ function showStats(d){
   $('#sT').textContent=nf(d.codes); $('#sU').textContent=nf(d.scanned);
   $('#sN').textContent=nf(d.codes-d.scanned); $('#sR').textContent=nf(d.free_rows);
   $('#sRbox').classList.toggle('warn', d.free_rows < (d.codes-d.scanned));
+  if(d.db_bytes!=null){
+    const mb=d.db_bytes/1048576, lim=(d.db_limit||524288000)/1048576, pct=Math.min(100,mb/lim*100);
+    $('#sD').textContent=(mb<10?mb.toFixed(1):Math.round(mb))+' MB'; $('#sDm').style.width=Math.max(1,pct)+'%';
+    $('#sDt').textContent=`${Math.round(pct)}% بەکارهاتووە · ${nf(Math.max(0,Math.round(lim-mb)))} MB ماوە`;
+    $('#sDbox').classList.toggle('warn',pct>=70&&pct<90); $('#sDbox').classList.toggle('alert',pct>=90);
+  }
   $('#sP').textContent=nf(d.reports); $('#sPbox').classList.toggle('alert', d.reports>0);
   const tb=$('#btable');
   if(!batches.length){tb.innerHTML='<tr><td colspan="5" class="empty">هێشتا هیچ گرووپێک نییە. یەکەم گرووپ لە سەرەوە دروست بکە.</td></tr>';return}
