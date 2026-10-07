@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com blob:; worker-src blob:; connect-src https://foplvmfppbngywmxmqof.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; frame-src 'self' about: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>دوو برا · پانێڵ</title>
 <link rel="preconnect" href="https://foplvmfppbngywmxmqof.supabase.co" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap">
@@ -90,6 +92,8 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
 .linkbtn{padding:2px 8px!important;font-size:11px!important;margin-top:2px}
 .delbox{margin-top:14px;padding:14px;border:1px solid var(--warn);background:var(--warnsoft);border-radius:14px}
 .login{max-width:380px;margin:12vh auto 0}
+h3{margin:18px 0 8px;font-size:15px}
+tr.bad td{color:var(--warn)}
 .empty{color:var(--muted);padding:20px 0;text-align:center}
 @media print{.bar,.noprint{display:none!important}body{background:#fff;color:#000}.card{border:0;padding:0}.grid{grid-template-columns:repeat(5,1fr)}.qr{break-inside:avoid;border:1px solid #ccc}}
 @media (prefers-reduced-motion:reduce){.fill{transition:none}}
@@ -106,7 +110,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
     <h2>چوونەژوورەوە</h2>
     <p class="sub">وشەی نهێنی (PIN) بنووسە</p>
     <div class="row">
-      <label for="pin" style="flex:1">PIN<input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
+      <label for="pin" style="flex:1">PIN<input id="pin" type="password" autocomplete="current-password"></label>
       <button class="btn" id="go">چوونەژوورەوە</button>
     </div>
     <p class="msg" id="lmsg"></p>
@@ -218,6 +222,32 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
       <p class="msg" id="tplmsg"></p>
     </section>
 
+    <section class="card noprint" id="seccard">
+      <h2>🔒 ئاسایش</h2>
+      <p class="sub">٥ جار PIN ـی هەڵە لە یەک ئامێرەوە = ئەو ئامێرە ١٥ خولەک دادەخرێت. هەر چوونەژوورەوەیەک ١٢ کاتژمێر دەمێنێت و PIN ـەکە لە وێبگەڕەکەدا پاشەکەوت ناکرێت.</p>
+      <div class="stats">
+        <div class="stat" id="secFbox"><span>هەوڵی PIN ـی هەڵە (٢٤ کاتژمێر)</span><b id="secF">–</b></div>
+        <div class="stat"><span>ئامێری چووەژوورەوە</span><b id="secS">–</b></div>
+      </div>
+      <h3>گۆڕینی PIN</h3>
+      <div class="row">
+        <label for="pinOld">PIN ـی ئێستا<input id="pinOld" type="password" autocomplete="current-password"></label>
+        <label for="pinNew">PIN ـی نوێ (لانیکەم ٨)<input id="pinNew" type="password" autocomplete="new-password" minlength="8" maxlength="64"></label>
+        <label for="pinNew2">دووبارە PIN ـی نوێ<input id="pinNew2" type="password" autocomplete="new-password" maxlength="64"></label>
+        <button class="btn" id="pinSave">گۆڕین</button>
+      </div>
+      <p class="msg" id="pinMsg"></p>
+      <div class="row">
+        <button class="btn warn sm" id="logoutAll">دەرکردنی هەموو ئامێرەکان</button>
+        <button class="btn ghost sm" id="secRef">نوێکردنەوە</button>
+      </div>
+      <h3>تۆماری کارەکان (٤٠ ـی کۆتایی)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>کات</th><th>کار</th><th>وردەکاری</th><th>IP</th></tr></thead>
+        <tbody id="secLog"><tr><td colspan="4" class="empty">چاوەڕێ بکە...</td></tr></tbody>
+      </table></div>
+    </section>
+
     <section class="card" id="viewer" hidden>
       <div class="row noprint" style="justify-content:space-between">
         <div><h2 id="vtitle"></h2><p class="sub" id="vsub" style="margin:0"></p></div>
@@ -238,6 +268,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
 </div>
 
 <script>
+if(window.top!==window.self){ document.documentElement.innerHTML=''; throw new Error('framed'); }
 const API='https://foplvmfppbngywmxmqof.supabase.co/rest/v1/rpc/';
 const KEY='sb_publishable_HFxscwwTWxXEspJEnpJgFA_Ib4A5cAQ';
 const BASE=location.href.replace(/[^/]*([?#].*)?$/,'')+'q.html?c=';
@@ -253,25 +284,44 @@ async function rpc(fn,body,tries=3){
     try{
       const r=await fetch(API+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify({p_pin:PIN,...body})});
       if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,200));
-      return await r.json();
+      const j=await r.json();
+      if(j && j.ok===false && j.error==='pin' && PIN.length===64){ endSession('کاتی چوونەژوورەوە تەواو بوو، دووبارە PIN بنووسە.'); }
+      return j;
     }catch(e){ if(t>=tries-1) throw e; await new Promise(r=>setTimeout(r,800*(t+1))); }
   }
 }
 
-/* ---------- login ---------- */
+/* ---------- login (PIN -> 12h session token; the PIN is never stored) ---------- */
+let timer=null;
+const LOCKED='🔒 بەهۆی چەند هەوڵێکی هەڵە، چوونەژوورەوە بۆ ماوەیەک داخراوە. دواتر هەوڵ بدەرەوە.';
 async function login(){
-  PIN=$('#pin').value.trim(); $('#lmsg').textContent='';
+  const pin=$('#pin').value.trim(); $('#lmsg').textContent=''; if(!pin) return;
+  $('#go').disabled=true;
   try{
-    const d=await rpc('admin_stats',{});
-    if(!d.ok){$('#lmsg').textContent='وشەی نهێنی هەڵەیە.';return}
-    try{sessionStorage.setItem('dbpin',PIN)}catch(e){}
-    $('#login').hidden=true; $('#app').hidden=false; $('#logout').hidden=false;
-    showStats(d); loadTpl(); loadReports(); setInterval(()=>{ if(!busy){ loadReports(); refresh(); } },30000);
-  }catch(e){$('#lmsg').textContent='پەیوەندی نییە: '+e.message}
+    PIN=''; const r=await rpc('admin_login',{p_pin:pin},1);
+    if(!r.ok){ $('#lmsg').textContent='وشەی نهێنی هەڵەیە.'; return; }
+    PIN=r.token; $('#pin').value='';
+    try{ sessionStorage.setItem('dbtok',PIN); }catch(e){}
+    await enter();
+  }catch(e){ $('#lmsg').textContent=/locked/.test(e.message)?LOCKED:'پەیوەندی نییە: '+e.message; }
+  finally{ $('#go').disabled=false; }
+}
+async function enter(){
+  const d=await rpc('admin_stats',{});
+  if(!d.ok){ endSession(); return; }
+  $('#login').hidden=true; $('#app').hidden=false; $('#logout').hidden=false;
+  showStats(d); loadTpl(); loadReports(); loadSec();
+  clearInterval(timer); timer=setInterval(()=>{ if(!busy){ loadReports(); refresh(); } },30000);
+}
+function endSession(msg){
+  clearInterval(timer); PIN='';
+  try{ sessionStorage.removeItem('dbtok'); sessionStorage.removeItem('dbpin'); }catch(e){}
+  $('#app').hidden=true; $('#logout').hidden=true; $('#login').hidden=false;
+  if(msg) $('#lmsg').textContent=msg;
 }
 $('#go').onclick=login; $('#pin').onkeydown=e=>{if(e.key==='Enter')login()};
-$('#logout').onclick=()=>{try{sessionStorage.removeItem('dbpin')}catch(e){} location.reload()};
-try{const p=sessionStorage.getItem('dbpin'); if(p){$('#pin').value=p; login()}}catch(e){}
+$('#logout').onclick=async()=>{ try{ await rpc('admin_logout',{p_all:false},1); }catch(e){} endSession(); location.reload(); };
+try{ sessionStorage.removeItem('dbpin'); const t=sessionStorage.getItem('dbtok'); if(t){ PIN=t; enter().catch(()=>endSession()); } }catch(e){}
 
 /* ---------- stats & groups ---------- */
 async function refresh(){ const d=await rpc('admin_stats',{}); if(d.ok) showStats(d); }
@@ -598,6 +648,37 @@ $('#tplreset').onclick=()=>{
   resetArmed=false; $('#tplreset').textContent='گەڕانەوە بۆ دیزاینی بنەڕەت';
   $('#tpl').value=DEFAULT_TPL; previewTpl();
   $('#tplmsg').className='msg'; $('#tplmsg').textContent='دیزاینی بنەڕەت دانرایەوە. بۆ جێبەجێکردن «پاشەکەوتکردن» دابگرە.';
+};
+
+/* ---------- security ---------- */
+const ACT={login:'چوونەژوورەوە',login_fail:'⚠️ PIN ـی هەڵە',pin_changed:'PIN گۆڕدرا',pin_change_fail:'⚠️ هەوڵی گۆڕینی PIN (هەڵە)',
+  logout_all:'دەرکردنی هەموو ئامێرەکان',template:'دیزاینی پەڕەی سکان گۆڕدرا',group_new:'گرووپی نوێ',group_del:'گرووپ سڕایەوە',
+  link:'لینک گۆڕدرا',replace:'ئیستبدال',dismiss:'ڕەتکردنەوەی داواکاری',qr_delete:'QR سڕایەوە'};
+async function loadSec(){
+  const r=await rpc('admin_security',{}); if(!r.ok) return;
+  $('#secF').textContent=nf(r.fails_24h); $('#secFbox').classList.toggle('alert', r.fails_24h>0); $('#secS').textContent=nf(r.sessions);
+  $('#secLog').innerHTML=r.log.length?r.log.map(x=>`<tr class="${/fail/.test(x[1])?'bad':''}"><td dir="ltr" style="text-align:end">${esc(x[0])}</td><td>${esc(ACT[x[1]]||x[1])}</td><td class="data" dir="auto">${esc(x[2])}</td><td dir="ltr">${esc(x[3])}</td></tr>`).join('')
+    :'<tr><td colspan="4" class="empty">هێشتا هیچ تۆمارێک نییە.</td></tr>';
+}
+$('#secRef').onclick=loadSec;
+$('#pinSave').onclick=async()=>{
+  const o=$('#pinOld').value, n=$('#pinNew').value, n2=$('#pinNew2').value, m=$('#pinMsg'); m.className='msg';
+  if(n.length<8){ m.textContent='PIN ـی نوێ دەبێت لانیکەم ٨ پیت یان ژمارە بێت.'; return; }
+  if(n!==n2){ m.textContent='دوو PIN ـە نوێیەکە وەک یەک نین.'; return; }
+  if(/^(.)\1+$/.test(n)||/^(0?123456789?|12345678|87654321|password|qwerty)/i.test(n)){ m.textContent='ئەم PIN ـە زۆر ئاسانە، شتێکی قورستر هەڵبژێرە.'; return; }
+  $('#pinSave').disabled=true;
+  try{
+    const r=await rpc('admin_change_pin',{p_old:o,p_new:n},1);
+    if(!r.ok) throw new Error(r.error==='old'?'PIN ـی ئێستا هەڵەیە.':r.error==='short'?'PIN ـی نوێ کورتە.':'هەڵەیەک ڕوویدا.');
+    m.className='msg ok'; m.textContent='✅ PIN گۆڕدرا. هەموو ئامێرەکان دەرکران، دووبارە بە PIN ـی نوێ بچۆ ژوورەوە.';
+    setTimeout(()=>{ endSession(); location.reload(); },2500);
+  }catch(e){ m.textContent=/locked/.test(e.message)?LOCKED:e.message; }
+  finally{ $('#pinSave').disabled=false; ['#pinOld','#pinNew','#pinNew2'].forEach(x=>$(x).value=''); }
+};
+let laArmed=false;
+$('#logoutAll').onclick=async()=>{
+  if(!laArmed){ laArmed=true; $('#logoutAll').textContent='دڵنیای؟ دووبارە دابگرە'; setTimeout(()=>{laArmed=false;$('#logoutAll').textContent='دەرکردنی هەموو ئامێرەکان'},4000); return; }
+  try{ await rpc('admin_logout',{p_all:true},1); }catch(e){} endSession(); location.reload();
 };
 
 /* ---------- replacement requests ---------- */
