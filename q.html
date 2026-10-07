@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
 <title>دوو برا</title>
 <link rel="preconnect" href="https://foplvmfppbngywmxmqof.supabase.co" crossorigin>
 <style>
@@ -60,7 +62,9 @@ else fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:
 .then(r=>r.json()).then(d=>{
   if(!d.ok){fail(d.error==='empty'?'ببورە، لە ئێستادا هیچ زانیارییەک بەردەست نییە.':'ئەم QR کۆدە دروست نییە.');return}
   d.code=code;
-  const html=fillTpl((d.tpl&&d.tpl.trim())?d.tpl:DEFAULT_TPL,d);
+  let html=fillTpl((d.tpl&&d.tpl.trim())?d.tpl:DEFAULT_TPL,d);
+  /* never leak the QR code to other websites through the Referer header */
+  html=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,m=>m+'<meta name="referrer" content="no-referrer">'):'<meta name="referrer" content="no-referrer">'+html;
   document.open(); document.write(html); document.close();
   wireReport();
 }).catch(()=>fail('کێشەی ئینتەرنێت هەیە، تکایە دووبارە هەوڵ بدەرەوە.'));
