@@ -67,6 +67,14 @@ td .acts{display:flex;gap:6px}
 .found{margin-top:12px;display:grid;gap:4px}
 #app:not([hidden]){display:grid;gap:18px}
 [hidden]{display:none!important}
+.tpl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:14px}
+@media (max-width:820px){.tpl{grid-template-columns:1fr}}
+.tplcol{display:grid;gap:4px;min-width:0;align-content:start}
+#tpl{font-family:var(--mono);font-size:12px;line-height:1.5;min-height:420px;width:100%;resize:vertical;tab-size:2;white-space:pre;overflow:auto}
+#tplprev{width:100%;height:440px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.plabel{font-size:13px;color:var(--muted)}
+.sub code{font-family:var(--mono);font-size:12px;background:var(--soft);color:var(--accent);padding:0 4px;border-radius:4px}
+a.btn{text-decoration:none;display:inline-block}
 .login{max-width:380px;margin:12vh auto 0}
 .empty{color:var(--muted);padding:20px 0;text-align:center}
 @media print{.bar,.noprint{display:none!important}body{background:#fff;color:#000}.card{border:0;padding:0}.grid{grid-template-columns:repeat(5,1fr)}.qr{break-inside:avoid;border:1px solid #ccc}}
@@ -135,6 +143,29 @@ td .acts{display:flex;gap:6px}
       <div class="found" id="found"></div>
     </section>
 
+
+    <section class="card noprint" id="tplcard">
+      <h2>دیزاینی پەڕەی سکان (HTML)</h2>
+      <p class="sub">ئەمە ئەو پەڕەیەیە کە کڕیار دوای سکان دەیبینێت. دەتوانیت هەر شتێک بگۆڕیت. ئەم نیشانانە خۆکارانە بە زانیاری ڕاستەقینە دەگۆڕدرێن:
+        <code dir="ltr">{{rows}}</code> هەموو زانیارییەکان ·
+        <code dir="ltr">{{1}}</code>…<code dir="ltr">{{5}}</code> خانەی A–E ·
+        <code dir="ltr">{{name1}}</code>…<code dir="ltr">{{name5}}</code> ناوی خانەکان ·
+        <code dir="ltr">{{time}}</code> کاتی سکان ·
+        <code dir="ltr">{{count}}</code> ژمارەی سکان ·
+        <code dir="ltr">{{status}}</code> یەکەم جار/پێشتر ·
+        <code dir="ltr">{{code}}</code> کۆدی QR</p>
+      <div class="tpl">
+        <label for="tpl" class="tplcol">کۆدی HTML<textarea id="tpl" dir="ltr" spellcheck="false"></textarea></label>
+        <div class="tplcol"><span class="plabel">پێشبینین (بە زانیاری نموونە)</span><iframe id="tplprev" title="پێشبینین" sandbox="allow-same-origin"></iframe></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="tplsave">پاشەکەوتکردن</button>
+        <button class="btn ghost" id="tplreset">گەڕانەوە بۆ دیزاینی بنەڕەت</button>
+        <a class="btn ghost" id="tplopen" target="_blank" rel="noopener">کردنەوەی پەڕەی سکان</a>
+      </div>
+      <p class="msg" id="tplmsg"></p>
+    </section>
+
     <section class="card" id="viewer" hidden>
       <div class="row noprint" style="justify-content:space-between">
         <div><h2 id="vtitle"></h2><p class="sub" id="vsub" style="margin:0"></p></div>
@@ -183,7 +214,7 @@ async function login(){
     if(!d.ok){$('#lmsg').textContent='وشەی نهێنی هەڵەیە.';return}
     try{sessionStorage.setItem('dbpin',PIN)}catch(e){}
     $('#login').hidden=true; $('#app').hidden=false; $('#logout').hidden=false;
-    showStats(d);
+    showStats(d); loadTpl();
   }catch(e){$('#lmsg').textContent='پەیوەندی نییە: '+e.message}
 }
 $('#go').onclick=login; $('#pin').onkeydown=e=>{if(e.key==='Enter')login()};
@@ -363,6 +394,47 @@ $('#find').onclick=async()=>{
     (f.row?`<div><span class="pill">سکانکراو</span> ڕیزی ${f.row} · ${f.count} جار · <span dir="ltr">${esc(f.scanned_at)}</span></div><div style="color:var(--muted)">${f.data.filter(Boolean).map(esc).join(' · ')}</div>`:'<div><span class="pill new">هێشتا سکان نەکراوە</span></div>');
 };
 $('#fcode').onkeydown=e=>{if(e.key==='Enter')$('#find').click()};
+
+/* ---------- scan page design editor ---------- */
+const DEFAULT_TPL="<!doctype html>\n<html lang=\"ckb\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>\u062f\u0648\u0648 \u0628\u0631\u0627<\/title>\n<style>\n:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--muted:#5d6b76;--line:#dde3e8;--accent:#0e7c66;--soft:#e1f2ed}\n@media (prefers-color-scheme:dark){:root{--bg:#0f171d;--card:#17222a;--ink:#e7edf1;--muted:#93a3ae;--line:#26343e;--accent:#3cc4a3;--soft:#163a33}}\n*{box-sizing:border-box}\nbody{margin:0;background:var(--bg);color:var(--ink);font-family:\"Vazirmatn\",\"Noto Sans Arabic\",Tahoma,sans-serif;font-size:16px;line-height:1.6}\n.wrap{max-width:460px;margin:0 auto;padding:24px 16px}\n.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}\n.logo{width:48px;height:48px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:900;font-size:20px}\n.top b{font-size:20px;display:block;line-height:1.2}.top small{color:var(--muted)}\n.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}\n.f{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px dashed var(--line)}\n.f:last-child{border:0}.f span{color:var(--muted)}.f b{text-align:end;word-break:break-word}\n.pill{display:inline-block;font-size:13px;padding:2px 12px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:700;margin-bottom:8px}\n<\/style>\n<\/head>\n<body>\n<div class=\"wrap\">\n  <div class=\"top\"><div class=\"logo\">DB<\/div><div><b>\u062f\u0648\u0648 \u0628\u0631\u0627<\/b><small>Dw Bra<\/small><\/div><\/div>\n  <div class=\"card\">\n    <span class=\"pill\">{{status}}<\/span>\n    {{rows}}\n    <div class=\"f\"><span>\u06a9\u0627\u062a\u06cc \u06cc\u06d5\u06a9\u06d5\u0645 \u0633\u06a9\u0627\u0646<\/span><b dir=\"ltr\">{{time}}<\/b><\/div>\n  <\/div>\n<\/div>\n<\/body>\n<\/html>\n";
+
+/* fills {{...}} placeholders; values are escaped, {{rows}} is built here */
+function fillTpl(tpl,d){
+  const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const h=d.headers||[], v=d.data||[];
+  const rows=v.map((x,i)=>(x!==null&&String(x).trim()!=='')?'<div class="f"><span>'+esc(h[i]||('زانیاری '+(i+1)))+'</span><b>'+esc(x)+'</b></div>':'').join('');
+  const map={rows, status:d.first?'یەکەم جار سکان کرا':'پێشتر سکان کراوە', time:d.scanned_at, count:d.count, code:d.code};
+  for(let i=0;i<5;i++){ map[String(i+1)]=v[i]; map['name'+(i+1)]=h[i]; }
+  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g,(m,k)=>k==='rows'?rows:(k in map?esc(map[k]):m));
+}
+let tplHeaders=[], tplTimer=null;
+function previewTpl(){
+  const sample={first:true, headers:tplHeaders.map((h,i)=>h||['ناو','ژمارە','بەرهەم','کۆد','نرخ'][i]),
+    data:['ئارام عەلی','0750 123 4567','کارتی ئایتونز 25$','ITN-8F2K-QX91','37,500'], scanned_at:'2026-10-06 14:32:10', count:1, code:'ABCDEFGH234567'};
+  $('#tplprev').srcdoc=fillTpl($('#tpl').value.trim()||DEFAULT_TPL, sample);
+}
+async function loadTpl(){
+  const r=await rpc('admin_get_template',{}); if(!r.ok) return;
+  tplHeaders=(r.headers||[]).concat(['','','','','']).slice(0,5);
+  $('#tpl').value=(r.tpl&&r.tpl.trim())?r.tpl:DEFAULT_TPL; previewTpl();
+  $('#tplopen').href=BASE.replace(/q\.html\?c=$/,'q.html');
+}
+$('#tpl').addEventListener('input',()=>{clearTimeout(tplTimer); tplTimer=setTimeout(previewTpl,300)});
+$('#tpl').addEventListener('keydown',e=>{ if(e.key==='Tab'){e.preventDefault(); const t=e.target,s=t.selectionStart; t.setRangeText('  ',s,t.selectionEnd,'end'); t.dispatchEvent(new Event('input'));} });
+$('#tplsave').onclick=async()=>{
+  $('#tplmsg').className='msg'; $('#tplmsg').textContent='چاوەڕێ بکە...';
+  try{ const r=await rpc('admin_set_template',{p_tpl:$('#tpl').value});
+    if(!r.ok) throw new Error(r.error==='too_big'?'کۆدەکە زۆر گەورەیە':'هەڵە');
+    $('#tplmsg').className='msg ok'; $('#tplmsg').textContent='✅ پاشەکەوت کرا. کڕیارەکان ئێستا دیزاینە نوێیەکە دەبینن.';
+  }catch(e){ $('#tplmsg').textContent='پاشەکەوت نەکرا: '+e.message; }
+};
+let resetArmed=false;
+$('#tplreset').onclick=()=>{
+  if(!resetArmed){ resetArmed=true; $('#tplreset').textContent='دڵنیای؟ دووبارە دابگرە'; setTimeout(()=>{resetArmed=false;$('#tplreset').textContent='گەڕانەوە بۆ دیزاینی بنەڕەت'},4000); return; }
+  resetArmed=false; $('#tplreset').textContent='گەڕانەوە بۆ دیزاینی بنەڕەت';
+  $('#tpl').value=DEFAULT_TPL; previewTpl();
+  $('#tplmsg').className='msg'; $('#tplmsg').textContent='دیزاینی بنەڕەت دانرایەوە. بۆ جێبەجێکردن «پاشەکەوتکردن» دابگرە.';
+};
 </script>
 </body>
 </html>
