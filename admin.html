@@ -81,6 +81,9 @@ td.data{white-space:normal;min-width:200px;max-width:360px}
 td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
 .btn.warn{background:var(--warn);color:#fff}
 .btn.del{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+.linkbox{border-color:var(--accent)!important;background:var(--soft)!important}
+.blink{color:var(--muted);font-size:11px;font-family:var(--mono)}
+.linkbtn{padding:2px 8px!important;font-size:11px!important;margin-top:2px}
 .delbox{margin-top:14px;padding:14px;border:1px solid var(--warn);background:var(--warnsoft);border-radius:14px}
 .login{max-width:380px;margin:12vh auto 0}
 .empty{color:var(--muted);padding:20px 0;text-align:center}
@@ -133,6 +136,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
       <p class="sub">ناوێک بۆ گرووپەکە بنووسە و ژمارەکە دیاری بکە. دەتوانیت تا ١٠٠,٠٠٠ دانە بە یەکجار دروست بکەیت.</p>
       <div class="row">
         <label for="bname" style="flex:1;min-width:180px">ناوی گرووپ<input id="bname" placeholder="بۆ نموونە: eid-2026" maxlength="40"></label>
+        <label for="bbase" style="flex:2 1 100%;min-width:220px">لینکی وێبسایت (QR ـەکان بۆ کام وێب بچن)<input id="bbase" dir="ltr" list="baselist" placeholder="https://..."><datalist id="baselist"></datalist><small id="bprev" dir="ltr" style="color:var(--muted);font-size:12px;word-break:break-all"></small></label>
         <label for="bcount">ژمارە<input id="bcount" type="number" min="1" max="100000" value="100"></label>
         <label for="bsize">قەبارەی وێنە<select id="bsize"><option value="300" selected>بچووک ٣٠٠px</option><option value="500">مامناوەند ٥٠٠px</option><option value="1000">گەورە ١٠٠٠px (بۆ چاپ)</option></select></label>
         <label for="bfmt">جۆر<select id="bfmt"><option value="png">PNG</option><option value="svg">SVG (بۆ چاپخانە)</option></select></label>
@@ -162,6 +166,16 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--warn)}
           <button class="btn warn sm" id="delall">سڕینەوەی هەموو گرووپەکە</button>
           <button class="btn ghost sm" id="delcancel">پاشگەزبوونەوە</button>
         </div>
+      </div>
+      <div class="delbox linkbox" id="linkbox" hidden>
+        <b id="linktitle"></b>
+        <p class="sub" style="margin:6px 0 10px">ئەم لینکە تەنها بۆ ZIP ـی نوێی ئەم گرووپە بەکاردێت. ئەو QR ـانەی پێشتر چاپ کراون هەر بۆ لینکە کۆنەکە دەچن.</p>
+        <div class="row">
+          <label for="linkin" style="flex:1;min-width:220px">لینکی وێبسایت<input id="linkin" dir="ltr" list="baselist" placeholder="https://..."></label>
+          <button class="btn sm" id="linksave">پاشەکەوتکردن</button>
+          <button class="btn ghost sm" id="linkcancel">پاشگەزبوونەوە</button>
+        </div>
+        <small id="linkprev" dir="ltr" style="color:var(--muted);font-size:12px;word-break:break-all"></small>
       </div>
       <p class="msg" id="delmsg"></p>
     </section>
@@ -266,13 +280,15 @@ function showStats(d){
   if(!batches.length){tb.innerHTML='<tr><td colspan="5" class="empty">هێشتا هیچ گرووپێک نییە. یەکەم گرووپ لە سەرەوە دروست بکە.</td></tr>';return}
   tb.innerHTML=batches.map(b=>{
     const pct=b.total?Math.round(b.used/b.total*100):0;
-    return `<tr><td><b>${esc(b.name)}</b></td><td dir="ltr" style="text-align:end">${esc(b.created)}</td><td>${nf(b.total)}</td>
+    return `<tr><td><b>${esc(b.name)}</b><br><small dir="ltr" class="blink" title="${esc(linkTpl(b.base))}">${esc(shortLink(b.base))}</small> <button class="btn ghost sm linkbtn" data-link="${b.id}">گۆڕینی لینک</button></td><td dir="ltr" style="text-align:end">${esc(b.created)}</td><td>${nf(b.total)}</td>
       <td>${nf(b.used)}<span class="meter"><i style="width:${pct}%"></i></span></td>
       <td><div class="acts"><button class="btn sm" data-zip="${b.id}">ZIP</button><button class="btn ghost sm" data-view="${b.id}">بینین</button><button class="btn del sm" data-del="${b.id}">سڕینەوە</button></div></td></tr>`;
   }).join('');
   tb.querySelectorAll('[data-zip]').forEach(x=>x.onclick=()=>downloadBatch(+x.dataset.zip));
   tb.querySelectorAll('[data-view]').forEach(x=>x.onclick=()=>openView(+x.dataset.view));
   tb.querySelectorAll('[data-del]').forEach(x=>x.onclick=()=>askDelete(+x.dataset.del));
+  tb.querySelectorAll('[data-link]').forEach(x=>x.onclick=()=>askLink(+x.dataset.link));
+  fillBaseList();
   if(busy) lock(true);
 }
 
@@ -312,6 +328,42 @@ async function runDelete(all){
   finally{ lock(false); delId=null; }
 }
 
+/* ---------- website link per group ---------- */
+const SITE=BASE.replace(/\?c=$/,'');                       /* this site's scan page */
+function linkTpl(b){                                          /* -> full link with {code} */
+  b=String(b||'').trim(); if(!b) return BASE+'{code}';
+  if(b.includes('{code}')) return b;
+  if(/[?&][\w-]+=$/.test(b)) return b+'{code}';
+  return b+(b.includes('?')?'&':'?')+'c={code}';
+}
+const shortLink=b=>linkTpl(b).replace(/^https?:\/\//,'').replace('{code}','…');
+function showPrev(inp,out){ const v=inp.value.trim(); out.textContent=(v&&!/^https?:\/\/\S+$/i.test(v))?'⚠️ لینکەکە دەبێت بە https:// دەست پێ بکات':('QR ـەکان دەچن بۆ: '+linkTpl(v).replace('{code}','ABCD2345EFGH678')); }
+function fillBaseList(){
+  const set=new Set([SITE]); batches.forEach(b=>{ if(b.base) set.add(b.base.replace(/[?&]c=\{code\}$/,'')); });
+  $('#baselist').innerHTML=[...set].map(x=>`<option value="${esc(x)}">`).join('');
+}
+$('#bbase').addEventListener('input',()=>showPrev($('#bbase'),$('#bprev')));
+try{ $('#bbase').value=localStorage.getItem('dbbase')||SITE; }catch(e){ $('#bbase').value=SITE; }
+showPrev($('#bbase'),$('#bprev'));
+let linkId=null;
+function askLink(id){
+  const b=batches.find(x=>x.id===id); if(!b) return;
+  linkId=id; $('#linktitle').textContent=`لینکی گرووپی «${b.name}»`;
+  $('#linkin').value=b.base?b.base.replace(/[?&]c=\{code\}$/,''):SITE; showPrev($('#linkin'),$('#linkprev'));
+  $('#linkbox').hidden=false; $('#linkbox').scrollIntoView({behavior:'smooth',block:'center'}); $('#linkin').focus();
+}
+$('#linkin').addEventListener('input',()=>showPrev($('#linkin'),$('#linkprev')));
+$('#linkcancel').onclick=()=>{ $('#linkbox').hidden=true; linkId=null; };
+$('#linksave').onclick=async()=>{
+  const v=$('#linkin').value.trim();
+  if(v && !/^https?:\/\/\S+$/i.test(v)){ showPrev($('#linkin'),$('#linkprev')); return; }
+  $('#linksave').disabled=true;
+  try{ const r=await rpc('admin_set_batch_base',{p_batch:linkId,p_base:v?linkTpl(v):null}); if(!r.ok) throw new Error('هەڵە');
+    $('#linkbox').hidden=true; await refresh(); $('#delmsg').className='msg ok'; $('#delmsg').textContent='✅ لینکەکە گۆڕدرا.'; }
+  catch(e){ $('#linkprev').textContent='پاشەکەوت نەکرا: '+e.message; }
+  finally{ $('#linksave').disabled=false; }
+};
+
 /* ---------- progress ---------- */
 function prog(show,pct,text){ $('#prog').hidden=!show; if(show){$('#pfill').style.width=Math.max(0,Math.min(100,pct))+'%'; $('#ptext').textContent=text||''} }
 function lock(on){ busy=on; ['#create'].forEach(s=>$(s).disabled=on); document.querySelectorAll('[data-zip],[data-del]').forEach(b=>b.disabled=on); }
@@ -324,7 +376,10 @@ $('#create').onclick=async()=>{
   const total=Math.max(1,Math.min(100000,parseInt($('#bcount').value)||1));
   $('#cmsg').textContent=''; $('#cmsg').className='msg'; lock(true);
   try{
-    const b=await rpc('admin_new_batch',{p_name:name});
+    const base=$('#bbase').value.trim();
+    if(base && !/^https?:\/\/\S+$/i.test(base)) throw new Error('لینکەکە دروست نییە، دەبێت بە https:// دەست پێ بکات');
+    const b=await rpc('admin_new_batch2',{p_name:name,p_base:base?linkTpl(base):null});
+    try{localStorage.setItem('dbbase',base)}catch(e){}
     if(!b.ok) throw new Error('PIN');
     let made=0; const t0=performance.now();
     while(made<total){
@@ -350,7 +405,7 @@ onmessage=async e=>{
   const {items,base,fmt,size,label,name}=e.data; const files=[], bufs=[]; let csv='';
   const cv=fmt==='png'?new OffscreenCanvas(10,10):null;
   for(let i=0;i<items.length;i++){
-    const seq=items[i][0], code=items[i][1], url=base+code;
+    const seq=items[i][0], code=items[i][1], url=base.split('{code}').join(code);
     const q=qrcode(0,'M'); q.addData(url); q.make(); const n=q.getModuleCount(), quiet=4;
     const fname=name+'-'+String(seq).padStart(6,'0');
     if(cv){
@@ -383,14 +438,14 @@ onmessage=async e=>{
 };`;
 const urlOf={}; const wurl=k=>urlOf[k]||(urlOf[k]=URL.createObjectURL(new Blob([k==='r'?RENDER_SRC:ZIP_SRC],{type:'text/javascript'})));
 const POOL=Math.max(1,Math.min(4,navigator.hardwareConcurrency||2));
-async function zipPart(items,name,fmt,size,label,onProg){
+async function zipPart(items,name,fmt,size,label,onProg,tpl){
   if(fmt==='png'&&typeof OffscreenCanvas==='undefined') fmt='svg';
   let done=0; const slices=[...Array(POOL)].map((_,p)=>items.filter((_,i)=>i%POOL===p)).filter(x=>x.length);
   const results=await Promise.all(slices.map(sl=>new Promise((res,rej)=>{
     const w=new Worker(wurl('r'));
     w.onmessage=e=>{const m=e.data; if(m.t==='p'){done+=m.n; onProg(Math.min(done/items.length,1)*0.85)} else {w.terminate(); res(m)}};
     w.onerror=e=>{w.terminate(); rej(new Error(e.message||'render'))};
-    w.postMessage({items:sl,base:BASE,fmt,size,label,name});
+    w.postMessage({items:sl,base:tpl||linkTpl(''),fmt,size,label,name});
   })));
   const files=[], bufs=[]; let csv='';
   results.forEach(r=>{ r.files.forEach(f=>{files.push(f); if(f[1] instanceof ArrayBuffer) bufs.push(f[1])}); csv+=r.csv; });
@@ -427,7 +482,7 @@ async function downloadBatch(id){
       const blob=await zipPart(items,safe,fmt,size,label,f=>{
         const overall=(p+f)/parts*100;
         prog(true,overall,`دروستکردنی ZIP${parts>1?` · بەشی ${p+1}/${parts}`:''} · ${nf(Math.round(f*items.length))} / ${nf(items.length)}`);
-      });
+      },linkTpl(b.base));
       save(blob, safe+(parts>1?'-part'+(p+1):'')+'.zip');
     }
     prog(true,100,'✅ ZIP ئامادەیە و دابەزی'+(parts>1?` (${parts} فایل)`:''));
@@ -450,7 +505,7 @@ async function renderView(){
   if(items.length) view.starts[page+1]=items[items.length-1][0];
   if(view.filter==='new') items=items.filter(x=>!x[2]); if(view.filter==='used') items=items.filter(x=>x[2]);
   $('#vgrid').innerHTML=items.length?items.map(x=>{
-    const q=qrcode(0,'M'); q.addData(BASE+x[1]); q.make();
+    const q=qrcode(0,'M'); q.addData(linkTpl(b.base).split('{code}').join(x[1])); q.make();
     return `<div class="qr"><div class="img">${q.createSvgTag({cellSize:3,margin:2,scalable:true})}</div>
       <span class="n">${esc(b.name)} · ${x[0]}</span><code>${x[1]}</code>
       ${x[2]?`<span class="pill">ڕیز ${x[2]} · ${x[4]} سکان</span><small dir="ltr" style="color:var(--muted);font-size:11px">${esc(x[3])}</small>`:'<span class="pill new">نوێ</span>'}</div>`;
